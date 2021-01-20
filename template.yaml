@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  hi-api
+
+  Sample SAM Template for hi-api
+  
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+  Api:
+    EndpointConfiguration: REGIONAL
+    Cors: "'hi-api.dev.naumenko.ca'"
+    Domain:
+      DomainName: hi-api.dev.naumenko.ca
+      BasePath:
+        - /Dev
+      CertificateArn: !Ref ACMCertificate
+      Route53:
+        HostedZoneName: dev.naumenko.ca.
+    
+Resources:
+  ACMCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: hi-api.dev.naumenko.ca
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: hi-api.dev.naumenko.ca
+          HostedZoneId:
+            Fn::ImportValue: 'DefaultZoneId'
+      ValidationMethod: DNS
+
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'hi-api-function'
+      CodeUri: hi-api/
+      Handler: app.lambdaHandler
+      Runtime: nodejs12.x
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+
+  CatalogsLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn:
+      - HelloWorldFunction
+    Properties:
+      LogGroupName:
+        !Join [
+          '',
+          ['/aws/lambda/', !Sub 'hi-api-function']
+        ]
+      RetentionInDays: 1
+
+Outputs:
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HellowWorldDomain:
+    Description: "APIG custom domain"
+    Value: "https://hi-api.dev.naumenko.ca/Dev/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
